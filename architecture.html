@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI YouTube Agent — Architecture</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e17;
+            color: #c8cdd8;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #e4e8f0;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+
+        .pipeline {
+            display: flex;
+            gap: 12px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .pipeline::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .pipeline::-webkit-scrollbar-track {
+            background: #151b2b;
+        }
+
+        .pipeline::-webkit-scrollbar-thumb {
+            background: #2d3548;
+            border-radius: 2px;
+        }
+
+        .stage-card {
+            flex: 0 0 220px;
+            scroll-snap-align: start;
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 20px 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .stage-card::after {
+            content: '→';
+            position: absolute;
+            right: -11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #374151;
+            font-size: 16px;
+            z-index: 1;
+        }
+
+        .stage-card:last-child::after {
+            display: none;
+        }
+
+        .stage-card:hover,
+        .stage-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--glow);
+        }
+
+        .stage-card.active {
+            background: #131c2e;
+        }
+
+        .stage-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .stage-icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .stage-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e4e8f0;
+            margin-bottom: 6px;
+        }
+
+        .stage-subtitle {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        /* Stage colors */
+        .stage-card:nth-child(1) {
+            --accent: #60a5fa;
+            --glow: rgba(96, 165, 250, 0.15);
+        }
+
+        .stage-card:nth-child(2) {
+            --accent: #a78bfa;
+            --glow: rgba(167, 139, 250, 0.15);
+        }
+
+        .stage-card:nth-child(3) {
+            --accent: #f472b6;
+            --glow: rgba(244, 114, 182, 0.15);
+        }
+
+        .stage-card:nth-child(4) {
+            --accent: #fb923c;
+            --glow: rgba(251, 146, 60, 0.15);
+        }
+
+        .stage-card:nth-child(5) {
+            --accent: #34d399;
+            --glow: rgba(52, 211, 153, 0.15);
+        }
+
+        .detail-panel {
+            margin: 0 24px 24px;
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .detail-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .detail-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e4e8f0;
+        }
+
+        .detail-header p {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .detail-body {
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .detail-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-section h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4b5563;
+            margin-bottom: 10px;
+        }
+
+        .service-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            margin: 0 6px 6px 0;
+            background: #1a2236;
+            border: 1px solid #253047;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #c8cdd8;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .service-chip:hover {
+            background: #1f2a42;
+        }
+
+        .service-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .flow-item {
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a2236;
+            line-height: 1.5;
+            color: #9ca3af;
+        }
+
+        .flow-item:last-child {
+            border-bottom: none;
+        }
+
+        .flow-step {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #60a5fa;
+            margin-right: 8px;
+        }
+
+        .cost-bar-container {
+            margin: 0 24px 24px;
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+
+        .cost-bar-container h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4b5563;
+            margin-bottom: 16px;
+        }
+
+        .cost-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .cost-label {
+            font-size: 12px;
+            color: #9ca3af;
+            width: 130px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .cost-bar-track {
+            flex: 1;
+            height: 16px;
+            background: #1a2236;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cost-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .cost-amount {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #e4e8f0;
+            width: 50px;
+            flex-shrink: 0;
+        }
+
+        .cost-total {
+            text-align: right;
+            font-size: 14px;
+            font-weight: 600;
+            color: #34d399;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #1e293b;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>AI YouTube Channel Agent</h1>
+        <p>Autonomous content pipeline on Google Cloud Platform</p>
+    </div>
+
+    <div class="pipeline" id="pipeline"></div>
+    <div class="detail-panel" id="detail"></div>
+    <div class="cost-bar-container" id="costs"></div>
+
+    <script>
+        const stages = [
+            {
+                icon: "🔍", num: "Stage 1", title: "Topic Research",
+                subtitle: "Discover trending topics",
+                description: "Scans trends, scores candidates, deduplicates against past videos",
+                services: [
+                    { name: "Google Trends API", color: "#60a5fa" },
+                    { name: "YouTube Data API", color: "#60a5fa" },
+                    { name: "Vertex AI (Gemini)", color: "#a78bfa" },
+                    { name: "Firestore", color: "#fb923c" },
+                ],
+                flow: [
+                    "Pull trending queries in the channel niche",
+                    "Filter out topics already published (Firestore lookup)",
+                    "Score remaining candidates via Gemini on volume + novelty + fit",
+                    "Select top topic → write config JSON to Cloud Storage",
+                ]
+            },
+            {
+                icon: "✍️", num: "Stage 2", title: "Script Generation",
+                subtitle: "Write grounded, structured scripts",
+                description: "Uses grounded Gemini calls to produce a factual, engaging script",
+                services: [
+                    { name: "Vertex AI (Gemini 1.5 Pro)", color: "#a78bfa" },
+                    { name: "Vertex AI Search (grounding)", color: "#a78bfa" },
+                    { name: "Cloud Storage", color: "#34d399" },
+                ],
+                flow: [
+                    "Research topic via grounded generation (web search)",
+                    "Write full script with intro hook, sections, CTA",
+                    "Second Gemini pass: fact-check claims against sources",
+                    "Output Markdown script + SSML hints → GCS",
+                ]
+            },
+            {
+                icon: "🎙️", num: "Stage 3", title: "Audio Generation",
+                subtitle: "Convert script to narration",
+                description: "Synthesizes natural voiceover from the script using Cloud TTS or ElevenLabs",
+                services: [
+                    { name: "Cloud Text-to-Speech", color: "#f472b6" },
+                    { name: "ElevenLabs API (optional)", color: "#f472b6" },
+                    { name: "Cloud Storage", color: "#34d399" },
+                ],
+                flow: [
+                    "Parse script into SSML sections with pacing hints",
+                    "Call TTS API per section (WaveNet/Studio voice)",
+                    "Concatenate audio segments with natural pauses",
+                    "Upload final WAV/MP3 → GCS",
+                ]
+            },
+            {
+                icon: "🎬", num: "Stage 4", title: "Video Assembly",
+                subtitle: "Render visuals + audio into MP4",
+                description: "Combines generated images, stock footage, subtitles, and audio into a finished video",
+                services: [
+                    { name: "Cloud Run Job (FFmpeg)", color: "#fb923c" },
+                    { name: "Vertex AI Imagen", color: "#a78bfa" },
+                    { name: "Pexels / Pixabay API", color: "#fb923c" },
+                    { name: "Cloud Storage", color: "#34d399" },
+                ],
+                flow: [
+                    "Generate per-section visuals via Imagen or stock APIs",
+                    "Generate SRT subtitles from script timestamps",
+                    "FFmpeg + MoviePy: compose images, audio, subs, transitions",
+                    "Generate thumbnail (bold text overlay on Imagen background)",
+                    "Upload video.mp4 + thumbnail.png → GCS",
+                ]
+            },
+            {
+                icon: "🚀", num: "Stage 5", title: "Upload & Publish",
+                subtitle: "Push to YouTube with SEO metadata",
+                description: "Uploads the video with AI-optimized title, description, tags, and scheduling",
+                services: [
+                    { name: "YouTube Data API v3", color: "#34d399" },
+                    { name: "Vertex AI (Gemini)", color: "#a78bfa" },
+                    { name: "Secret Manager", color: "#f472b6" },
+                    { name: "Firestore", color: "#fb923c" },
+                ],
+                flow: [
+                    "Generate SEO-optimized title, description, tags via Gemini",
+                    "Refresh OAuth token from Secret Manager",
+                    "Resumable upload → YouTube Data API",
+                    "Set publishAt for optimal time slot",
+                    "Log video ID + metadata to Firestore",
+                ]
+            }
+        ];
+
+        const costs = [
+            { label: "Cloud Run Jobs", amount: 8, color: "#fb923c" },
+            { label: "Vertex AI", amount: 5, color: "#a78bfa" },
+            { label: "Cloud Run", amount: 3, color: "#60a5fa" },
+            { label: "Cloud Storage", amount: 1, color: "#34d399" },
+            { label: "Imagen", amount: 1, color: "#f472b6" },
+        ];
+
+        const pipeline = document.getElementById("pipeline");
+        const detail = document.getElementById("detail");
+        const costsEl = document.getElementById("costs");
+
+        let activeIdx = 0;
+
+        stages.forEach((s, i) => {
+            const card = document.createElement("div");
+            card.className = `stage-card${i === 0 ? " active" : ""}`;
+            card.innerHTML = `
+    <div class="stage-number">${s.num}</div>
+    <span class="stage-icon">${s.icon}</span>
+    <div class="stage-title">${s.title}</div>
+    <div class="stage-subtitle">${s.subtitle}</div>
+  `;
+            card.addEventListener("click", () => {
+                document.querySelectorAll(".stage-card").forEach(c => c.classList.remove("active"));
+                card.classList.add("active");
+                activeIdx = i;
+                renderDetail(i);
+            });
+            pipeline.appendChild(card);
+        });
+
+        function renderDetail(i) {
+            const s = stages[i];
+            detail.innerHTML = `
+    <div class="detail-header">
+      <h2>${s.icon} ${s.title}</h2>
+      <p>${s.description}</p>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section">
+        <h3>GCP Services</h3>
+        ${s.services.map(sv => `
+          <span class="service-chip">
+            <span class="service-dot" style="background:${sv.color}"></span>
+            ${sv.name}
+          </span>
+        `).join("")}
+      </div>
+      <div class="detail-section">
+        <h3>Data Flow</h3>
+        ${s.flow.map((f, j) => `
+          <div class="flow-item">
+            <span class="flow-step">${j + 1}.</span>${f}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+        }
+
+        renderDetail(0);
+
+        const maxCost = Math.max(...costs.map(c => c.amount));
+        const total = costs.reduce((sum, c) => sum + c.amount, 0);
+
+        costsEl.innerHTML = `
+  <h3>Estimated Monthly Cost (1 video/day)</h3>
+  ${costs.map(c => `
+    <div class="cost-row">
+      <div class="cost-label">${c.label}</div>
+      <div class="cost-bar-track">
+        <div class="cost-bar-fill" style="width:${(c.amount / maxCost) * 100}%;background:${c.color}"></div>
+      </div>
+      <div class="cost-amount">$${c.amount}</div>
+    </div>
+  `).join("")}
+  <div class="cost-total">Total: ~$${total}/month (GCP only)</div>
+`;
+    </script>
+
+</body>
+
+</html>
