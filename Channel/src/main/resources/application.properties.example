@@ -1,0 +1,86 @@
+﻿# ==== Agent model selection ====
+# Which LLM backend the agents use. Options: grok | gemini
+# Swapping this value is the only change needed to switch providers.
+agent.model.provider=gemini
+
+# ==== Grok (xAI, OpenAI-compatible Chat Completions) ====
+grok.base-url=https://api.x.ai/v1
+grok.model=grok-4.3
+# Supply your xAI key via the XAI_API_KEY environment variable (do NOT hardcode secrets).
+grok.api-key=${XAI_API_KEY:}
+
+# ==== Gemini (Vertex AI) ====
+google.cloud.project-id=vivid-now-390717
+google.cloud.location=us-central1
+# Script writing needs long-form adherence (4,000+ words) â€” flash undershoots badly (~1,600 words).
+# If the project gains access to gemini-3-pro-preview, try that next.
+google.cloud.model=gemini-2.5-pro
+google.cloud.research-model=gemini-2.5-flash
+
+# ==== Trending sources (YouTube + TikTok) ====
+# Supply secrets via environment variables (do NOT hardcode them here).
+# YouTube Data API v3 key: https://console.cloud.google.com/apis/credentials
+youtube.api-key=${YOUTUBE_API_KEY:}
+youtube.region=${YOUTUBE_REGION:}
+# TikTok Research API client credentials: https://developers.tiktok.com/products/research-api/
+tiktok.client-key=${TIKTOK_CLIENT_KEY:}
+tiktok.client-secret=${TIKTOK_CLIENT_SECRET:}
+tiktok.region=${TIKTOK_REGION:}
+
+# ==== Video pipeline (script -> narrated slideshow video) ====
+# See docs/VIDEO_PIPELINE.md for the design.
+video.work-dir=runs
+video.gcs.enabled=true
+video.gcs.bucket=aura-channel-media-vivid-now-390717
+# Chirp 3 HD voices are the expressive tier; Puck is the upbeat/energetic one.
+video.tts.voice=en-US-Chirp3-HD-Puck
+video.tts.language-code=en-US
+video.tts.speaking-rate=1.0
+# Image source: sdxl (dedicated GPU endpoint, gemini fallback) | imagen | wikimedia | hybrid
+video.image.source=pollinations
+# gemini-2.5-flash-image is the only image model this project has access to (all imagen-* 404).
+# If access appears, gemini-3-pro-image-preview is the quality upgrade to try.
+video.image.model=gemini-2.5-flash-image
+# Parallel image requests. Above ~8 the Vertex per-minute quota (429s) becomes the
+# limiter, not concurrency â€” raise the quota in the console to go faster still.
+video.image.concurrency=8
+# Quota is per-region: requests rotate across these Vertex locations, multiplying
+# effective throughput. Add more regions (us-east4, europe-west4) if the model 404s don't appear.
+video.image.locations=us-central1,global,us-east4,us-west1,europe-west4,asia-northeast1
+# Dedicated SDXL-Lightning L4 endpoint (no rate limits, ~2-3s/image at 1344x768).
+# Full predict base URL: dedicated DNS host + /v1/ + endpoint resource (no :predict suffix).
+# NOTE: the endpoint bills ~$0.98/hr while deployed â€” undeploy when not producing videos.
+video.image.sdxl-endpoint=https://mg-endpoint-8f4a86aa-0b4b-4dda-bdae-7fd3a21f88d7.us-east1-417002548362.prediction.vertexai.goog/v1/projects/988883164497/locations/us-east1/endpoints/mg-endpoint-8f4a86aa-0b4b-4dda-bdae-7fd3a21f88d7
+video.image.style-suffix=high-impact high quality 2D animation film still, one single consistent animation art style shared by every frame of this story (same character designs, same line weight, same palette discipline), gripping thriller tension, dynamic dramatic camera angle, bold cinematic lighting with strong color contrast, rich detailed painterly background art, characters posed with strong expressive body language, powerful composition with real depth and atmosphere, the most dramatic frame of the scene, depict ONLY the people explicitly described in the scene â€” do not add any extra people or bystanders, advertiser-safe (no gore, no explicit content), full bleed edge-to-edge composition, no panel borders, no frames, no text, no captions, no watermarks, no logos
+video.render.width=1920
+video.render.height=1080
+video.render.fps=30
+# Hardware encoder (AMD RX 9070 XT present); every clip/mux falls back to libx264 automatically if AMF fails.
+video.render.codec=h264_amf
+video.render.inter-segment-gap=0.25
+video.render.pause-gap=0.7
+video.ffmpeg-path=C:/Users/zyang/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.2-full_build/bin/ffmpeg.exe
+# Optional background music file (mixed at -18dB under narration); blank = none.
+video.music-path=
+
+# ==== YouTube publish stage (thumbnail + upload) ====
+# Off by default â€” flip to true once client_secret.json is in place (see docs/VIDEO_PIPELINE.md).
+youtube.upload.enabled=true
+# private until reviewed; flip to "public"/"unlisted" per video once you're happy with it.
+youtube.upload.privacy-status=public
+# OAuth client (Desktop app type) downloaded from Google Cloud Console; NEVER commit this file.
+youtube.upload.client-secrets-path=client_secret.json
+# Where the OAuth refresh token is cached after the one-time browser consent; NEVER commit this dir.
+youtube.upload.tokens-dir=.yt-tokens
+# Optional text appended to the video description (e.g. channel links/hashtags).
+youtube.upload.description-suffix=
+
+# Free registered Pollinations token (auth.pollinations.ai) raises the rate tier a lot.
+# Set the POLLINATIONS_TOKEN env var or paste the token here.
+video.image.pollinations-token=${POLLINATIONS_TOKEN:}
+# Pollinations model: flux (7s, full quality) | sana (2s, simpler) | gptimage (21s, best prompt accuracy).
+# gptimage chosen for accuracy per user 2026-07-26: expect ~20 min image stage and several
+# dollars of pollen per ~500-image video (vs ~$1 flux).
+video.image.pollinations-model=klein
+# Last-resort paid fallback (~$0.04/img) when BOTH free Pollinations hosts fail. Logged at WARN.
+video.image.gemini-fallback=true

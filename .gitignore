@@ -1,0 +1,17 @@
+# Build output (the packaged jar alone is >200MB — GitHub rejects files >100MB)
+Channel/target/
+target/
+
+# Generated media and scripts
+Channel/runs/
+Channel/scripts/
+
+# Secrets — NEVER commit. Copy application.properties.example and fill in locally.
+Channel/src/main/resources/application.properties
+Channel/client_secret.json
+Channel/.yt-tokens/
+
+# Logs and scratch output
+*.log
+Channel/response.json
+Channel/visibility-result.json
